@@ -1,0 +1,160 @@
+//plugins
+apply plugin: 'java'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'application'
+
+// Use Java 8 by default
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+[compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+
+// Service name
+def serviceName = "rss-babel"
+
+// Version & Group
+version '0.1'
+group 'gcr.io'
+
+// Archive base name
+archivesBaseName = "$serviceName"
+
+// Main class to be executed
+mainClassName = "com.ciandt.d1.rssbabel.Application"
+
+// Container tag
+def containerTag = getDate()
+def containerImage = "gcr.io/$gcpProject/$serviceName:$containerTag"
+
+buildscript {
+    repositories {
+        jcenter()
+        mavenCentral()
+        maven { url "http://repo.spring.io/snapshot" }
+        maven { url "http://repo.spring.io/milestone" }
+        maven { url 'http://repo.spring.io/plugins-release' }
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion")
+        classpath 'org.springframework.build.gradle:propdeps-plugin:0.0.7'
+    }
+}
+
+configure(allprojects) {
+    apply plugin: 'propdeps'
+    apply plugin: 'propdeps-maven'
+    apply plugin: 'propdeps-idea'
+    apply plugin: 'propdeps-eclipse'
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url "http://repo.spring.io/snapshot" }
+    maven { url "http://repo.spring.io/milestone" }
+}
+
+dependencies {
+
+    //Spring Boot
+    compile("org.springframework.boot:spring-boot-starter-web")
+    testCompile("org.springframework.boot:spring-boot-starter-test")
+    compile("org.springframework.boot:spring-boot-devtools")
+    optional("org.springframework.boot:spring-boot-configuration-processor")
+
+    //Google Libraries
+    compile "com.google.cloud:google-cloud-translate:$googleTranslateVersion"
+
+    //Utility
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-joda:$jodaVersion"
+    compile "com.fasterxml.jackson.module:jackson-module-afterburner:$afterburnerVersion"
+    compile "org.jsoup:jsoup:$jsoupVersion"
+
+    //MongoDB
+    compile "org.mongodb:mongodb-driver:$mongoDBDriverVersion"
+
+    //Memcached
+    compile "net.spy:spymemcached:$spymemcachedVersion"
+}
+
+// Create the executable jar and exclude some certificates
+jar {
+    manifest {
+        attributes "Implementation-Title": "RSS Babel"
+        attributes "Main-Class": mainClassName
+    }
+
+    // remove the security files (from mail.jar / activation.jar) so that the jar will be executable.
+    doFirst {
+        from(configurations.runtime.resolve().collect { it.isDirectory() ? it : zipTree(it) }) {
+            exclude 'META-INF/MANIFEST.MF'
+            exclude 'META-INF/*.SF'
+            exclude 'META-INF/*.DSA'
+            exclude 'META-INF/*.RSA'
+        }
+    }
+}
+
+/**
+ * Updates the docker image
+ */
+task runDocker(dependsOn: build, type: Exec) {
+    commandLine 'docker', 'build', '-t', "$containerImage", '-f', './Dockerfile', '.'
+}
+
+/**
+ * Runs the server locally
+ */
+bootRun {
+    if (project.hasProperty('env')) {
+        args = ["--env=$env", "--spring.profiles.active=$env"]
+    } else {
+        args = ['--env=local', "--spring.profiles.active=local"]
+    }
+}
+
+/**
+ * Set environment
+ */
+task setEnv(dependsOn: runDocker, type: Exec) {
+    //command to be executed
+    workingDir "$projectDir/scripts"
+    commandLine "$projectDir/scripts/prod.sh"
+}
+
+/**
+ * Push the docker image to Google Registry
+ */
+task pushDocker(dependsOn: setEnv, type: Exec) {
+    //command to be executed
+    commandLine 'gcloud', 'docker', '--', 'push', "$containerImage"
+}
+
+/**
+ * Push the docker image to Google Registry
+ */
+task push(dependsOn: pushDocker, type: Exec) {
+    //command to be executed
+    commandLine 'echo', "*** Tag generated = $containerTag"
+}
+
+/**
+ * Redeploys the DEV environment
+ */
+task deploy(type: Exec) {
+    //command to be executed
+    if (project.hasProperty('tag')) {
+        workingDir "$projectDir/scripts"
+        commandLine "$projectDir/scripts/redeploy-prd.sh"
+        args = ["gcr.io/$gcpProject/$serviceName:$tag"]
+    }
+}
+
+/**
+ * Returns the date in a format that can be used as container tag
+ */
+def getDate() {
+    def date = new Date()
+    def formattedDate = date.format('yyyyMMddHHmmss')
+    return formattedDate
+}

@@ -1,0 +1,7 @@
+general:
+  environment: prd
+  localEndpoint: http://104.197.254.170:8080
+  memcachedServers: services-prd-1:11211
+
+database:
+  connectionString: mongodb://104.155.151.139:27017

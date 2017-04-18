@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: rss-babel
+spec:
+  replicas: 1
+  selector:
+    app: rss-babel
+  template:
+    metadata:
+      name: rss-babel
+      labels:
+        app: rss-babel
+    spec:
+      containers:
+      - name: rss-babel
+        imagePullPolicy: Always
+        image: gcr.io/d1-labs/rss-babel:20170118171455
+        ports:
+        - containerPort: 8080
+        env:
+          - name: ENV
+            value: prd
