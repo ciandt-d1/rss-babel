@@ -163,21 +163,27 @@ public class FeedServices {
 
         @Override
         public SyndEntry call() throws Exception {
-            if (!StringUtils.isEmpty(syndEntry.getTitle())) {
-                syndEntry.setTitle(translateServices.translate(syndEntry.getTitle(), targetLanguage));
-            }
-            List<SyndContent> contentList = syndEntry.getContents();
-            for (SyndContent content : contentList) {
-                if (!StringUtils.isEmpty(content.getValue())) {
-                    content.setValue(translateServices.translate(content.getValue(), targetLanguage));
+
+            try {
+                if (!StringUtils.isEmpty(syndEntry.getTitle())) {
+                    syndEntry.setTitle(translateServices.translate(syndEntry.getTitle(), targetLanguage));
                 }
-            }
-            if (syndEntry.getDescription() != null) {
-                SyndContent description = syndEntry.getDescription();
-                if (!StringUtils.isEmpty(description.getValue())) {
-                    description.setValue(translateServices.translate(description.getValue(), targetLanguage));
+                List<SyndContent> contentList = syndEntry.getContents();
+                for (SyndContent content : contentList) {
+                    if (!StringUtils.isEmpty(content.getValue())) {
+                        content.setValue(translateServices.translate(content.getValue(), targetLanguage));
+                    }
                 }
+                if (syndEntry.getDescription() != null) {
+                    SyndContent description = syndEntry.getDescription();
+                    if (!StringUtils.isEmpty(description.getValue())) {
+                        description.setValue(translateServices.translate(description.getValue(), targetLanguage));
+                    }
+                }
+            } catch (Exception exc) {
+                logServices.warn(logger, "Error converting entry with title " + syndEntry.getTitle(), exc);
             }
+
             return syndEntry;
         }
     }

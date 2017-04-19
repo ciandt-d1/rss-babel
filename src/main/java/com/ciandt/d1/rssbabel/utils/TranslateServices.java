@@ -13,6 +13,12 @@ import org.springframework.stereotype.Service;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MultivaluedHashMap;
+import javax.ws.rs.core.MultivaluedMap;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.List;
 
 /**
@@ -24,6 +30,9 @@ public class TranslateServices {
     private static final Logger logger = LoggerFactory.getLogger(TranslateServices.class.getName());
 
     private static final String BASE_URL = "https://translation.googleapis.com/language/translate/v2";
+
+    @Autowired
+    private LogServices logServices;
 
     @Autowired
     private Environment env;
@@ -41,13 +50,32 @@ public class TranslateServices {
         }
 
         Client client = ClientBuilder.newClient().register(JacksonFeature.class);
-        TranslationResult translationResult = client.target(BASE_URL)
-                .queryParam("q", text)
-                .queryParam("key", key)
-                .queryParam("model", "nmt")
-                .queryParam("target", targetLanguage)
-                .queryParam("format", "html")
-                .request().get(TranslationResult.class);
+        TranslationResult translationResult = null;
+        try {
+            /*
+            translationResult = client.target(BASE_URL)
+                    .queryParam("q", URLEncoder.encode(text, "UTF-8"))
+                    .queryParam("key", key)
+                    .queryParam("model", "nmt")
+                    .queryParam("target", targetLanguage)
+                    .queryParam("format", "html")
+                    .request()
+                    .header("Content-Length", "0")
+                    .post(Entity.text(""), TranslationResult.class);
+                    */
+
+            WebTarget webTarget = client.target(BASE_URL);
+            MultivaluedMap<String, String> formData = new MultivaluedHashMap<String, String>();
+            formData.add("q", URLEncoder.encode(text, "UTF-8"));
+            formData.add("key", key);
+            formData.add("model", "nmt");
+            formData.add("target", targetLanguage);
+            formData.add("format", "html");
+            translationResult = webTarget.request().post(Entity.form(formData), TranslationResult.class);
+
+        } catch (UnsupportedEncodingException e) {
+            logServices.fatal(logger, "Error encoding parameters", e);
+        }
 
         String result = null;
 
