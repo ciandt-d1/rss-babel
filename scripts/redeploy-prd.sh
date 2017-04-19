@@ -13,13 +13,11 @@ fi
 kubectl get rc rss-babel > /dev/null 2>&1;
 if [ $? -ne 0 ]; then
   echo "Replication controller does not exist, creating.";
-  kubectl create -f ../kubernetes/rc-prd.yaml;
+  kubectl create -f ../deploy/rc-prd.yaml;
 else
   echo "Updating rc and performing rolling update";
   kubectl delete rc rss-babel;
-  kubectl create -f ../kubernetes/rc-prd.yaml;
-  #kubectl apply -f ../kubernetes/rc-prd.yaml;
-  #kubectl rolling-update rss-babel --image=$1;
+  kubectl create -f ../deploy/rc-prd.yaml;
   if [ $? -ne 0 ]; then
     echo "Could not perform rolling update"
       exit 1;
