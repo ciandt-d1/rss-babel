@@ -17,8 +17,6 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.List;
 
 /**
@@ -51,31 +49,15 @@ public class TranslateServices {
 
         Client client = ClientBuilder.newClient().register(JacksonFeature.class);
         TranslationResult translationResult = null;
-        try {
-            /*
-            translationResult = client.target(BASE_URL)
-                    .queryParam("q", URLEncoder.encode(text, "UTF-8"))
-                    .queryParam("key", key)
-                    .queryParam("model", "nmt")
-                    .queryParam("target", targetLanguage)
-                    .queryParam("format", "html")
-                    .request()
-                    .header("Content-Length", "0")
-                    .post(Entity.text(""), TranslationResult.class);
-                    */
 
-            WebTarget webTarget = client.target(BASE_URL);
-            MultivaluedMap<String, String> formData = new MultivaluedHashMap<String, String>();
-            formData.add("q", URLEncoder.encode(text, "UTF-8"));
-            formData.add("key", key);
-            formData.add("model", "nmt");
-            formData.add("target", targetLanguage);
-            formData.add("format", "html");
-            translationResult = webTarget.request().post(Entity.form(formData), TranslationResult.class);
-
-        } catch (UnsupportedEncodingException e) {
-            logServices.fatal(logger, "Error encoding parameters", e);
-        }
+        WebTarget webTarget = client.target(BASE_URL);
+        MultivaluedMap<String, String> formData = new MultivaluedHashMap<String, String>();
+        formData.add("q", text);
+        formData.add("key", key);
+        formData.add("model", "nmt");
+        formData.add("target", targetLanguage);
+        formData.add("format", "html");
+        translationResult = webTarget.request().post(Entity.form(formData), TranslationResult.class);
 
         String result = null;
 
@@ -87,10 +69,12 @@ public class TranslateServices {
             logger.debug("API call didn't return anything");
         }
 
+        /*
         if (logger.isDebugEnabled()) {
             logger.debug("Text: " + text);
             logger.debug("Translation: " + result);
         }
+        */
 
         return result;
     }

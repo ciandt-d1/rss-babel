@@ -83,6 +83,15 @@ public class FeedServices {
         List<SyndEntry> syndEntryList = feed.getEntries();
         List<SyndEntry> newSyndEntryList = new ArrayList<>();
 
+        //Feed title
+        String languageName = getLanguageName(targetLanguage);
+        feed.setTitle(feed.getTitle() + " (" + languageName + ")");
+
+        //Feed description
+        if (!StringUtils.isEmpty(feed.getDescription())) {
+            feed.setDescription(translateServices.translate(feed.getDescription(), targetLanguage));
+        }
+
         for (SyndEntry syndEntry : syndEntryList) {
 
             if (logger.isDebugEnabled()) {
@@ -186,5 +195,20 @@ public class FeedServices {
 
             return syndEntry;
         }
+    }
+
+    /**
+     * Return the language name
+     */
+    private String getLanguageName(String strLang) {
+        List<Language> languageList = getLanguageList();
+
+        for (Language language : languageList) {
+            if (strLang.equals(language.getCode())) {
+                return language.getName();
+            }
+        }
+
+        return null;
     }
 }
