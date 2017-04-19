@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
 public class GeneralConfig {
 
     private String environment;
-    private String localEndpoint;
+    private String defaultFeed;
     private String memcachedServers;
 
     public GeneralConfig() {
@@ -25,19 +25,19 @@ public class GeneralConfig {
         this.environment = environment;
     }
 
-    public String getLocalEndpoint() {
-        return localEndpoint;
-    }
-
-    public void setLocalEndpoint(String localEndpoint) {
-        this.localEndpoint = localEndpoint;
-    }
-
     public String getMemcachedServers() {
         return memcachedServers;
     }
 
     public void setMemcachedServers(String memcachedServers) {
         this.memcachedServers = memcachedServers;
+    }
+
+    public String getDefaultFeed() {
+        return defaultFeed;
+    }
+
+    public void setDefaultFeed(String defaultFeed) {
+        this.defaultFeed = defaultFeed;
     }
 }

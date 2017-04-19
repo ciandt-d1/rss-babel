@@ -1,7 +1,4 @@
 general:
   environment: local
-  localEndpoint: http://localhost:8080
   memcachedServers: localhost:11211
-
-database:
-  connectionString: mongodb://localhost:27017
+  defaultFeed: http://feeds2.feedburner.com/time/topstories
