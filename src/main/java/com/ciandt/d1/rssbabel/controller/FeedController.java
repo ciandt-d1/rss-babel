@@ -34,7 +34,7 @@ public class FeedController {
     /**
      * Generate a feed using a specific language
      */
-    @RequestMapping(value = "/{language}", method = RequestMethod.GET)
+    @RequestMapping(value = "/{language}", method = RequestMethod.GET, produces = "application/xml")
     public ResponseEntity generateFeed(@PathVariable("language") String language,
                                        @RequestParam(value = "feed", required = false) String feed) {
 
@@ -61,4 +61,6 @@ public class FeedController {
 
         return ResponseEntity.ok(result);
     }
+
+
 }

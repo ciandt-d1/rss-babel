@@ -1,6 +1,7 @@
 package com.ciandt.d1.rssbabel.service;
 
 import com.ciandt.d1.rssbabel.config.GeneralConfig;
+import com.ciandt.d1.rssbabel.utils.CacheServices;
 import com.ciandt.d1.rssbabel.utils.LogServices;
 import com.ciandt.d1.rssbabel.utils.TranslateServices;
 import com.google.cloud.translate.Language;
@@ -11,6 +12,7 @@ import com.rometools.rome.io.FeedException;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.SyndFeedOutput;
 import com.rometools.rome.io.XmlReader;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +22,9 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * Handles feed requests and processing
@@ -33,16 +37,19 @@ public class FeedServices {
     private final LogServices logServices;
     private final TranslateServices translateServices;
     private final GeneralConfig generalConfig;
+    private final CacheServices cacheServices;
 
     //TODO: change to a cache strategy with timeout
     private List<Language> languageList;
     private String supportedLanguages;
 
     @Autowired
-    public FeedServices(LogServices logServices, TranslateServices translateServices, GeneralConfig generalConfig) {
+    public FeedServices(LogServices logServices, TranslateServices translateServices, GeneralConfig generalConfig,
+                        CacheServices cacheServices) {
         this.logServices = logServices;
         this.translateServices = translateServices;
         this.generalConfig = generalConfig;
+        this.cacheServices = cacheServices;
     }
 
     /**
@@ -74,46 +81,31 @@ public class FeedServices {
         SyndFeedInput input = new SyndFeedInput();
         SyndFeed feed = input.build(new XmlReader(new URL(originalFeedUrl)));
         List<SyndEntry> syndEntryList = feed.getEntries();
+        List<SyndEntry> newSyndEntryList = new ArrayList<>();
 
         for (SyndEntry syndEntry : syndEntryList) {
-            List<SyndContent> contentList = syndEntry.getContents();
-            for (SyndContent content : contentList) {
-                content.setValue(translateServices.translate(content.getValue(), targetLanguage));
-            }
-        }
 
-        if (logger.isDebugEnabled()) {
-            for (SyndEntry syndEntry : syndEntryList) {
+            if (logger.isDebugEnabled()) {
                 logger.debug("-------------------");
                 logger.debug("Title = " + syndEntry.getTitle());
                 logger.debug("Author = " + syndEntry.getAuthor());
+                logger.debug("Link = " + syndEntry.getLink());
                 logger.debug("-------------------");
             }
+
+            String cacheKey = generateUniqueId(syndEntry, targetLanguage);
+            SyndEntry convertedSyndEntry = cacheServices.get(cacheKey, new SyndEntryLoader(syndEntry, targetLanguage));
+            newSyndEntryList.add(convertedSyndEntry);
         }
+
+        //change the entries to the converted one
+        feed.setEntries(newSyndEntryList);
 
         Writer writer = new StringWriter();
         SyndFeedOutput output = new SyndFeedOutput();
         output.output(feed, writer);
         writer.flush();
         writer.close();
-
-
-        /*
-        Abdera abdera = new Abdera();
-        Parser parser = abdera.getParser();
-
-        URL url = new URL(originalFeedUrl);
-        Document<Feed> doc = parser.parse(url.openStream(), url.toString());
-        Feed feed = doc.getRoot();
-
-        if (logger.isDebugEnabled()) {
-            logger.debug("Feed found. Feed Title: " + feed.getTitle());
-            for (Entry entry : feed.getEntries()) {
-                logger.debug("\tEntry Title: " + entry.getTitle());
-            }
-            logger.debug("Feed Author: " + feed.getAuthor());
-        }
-        */
 
         return writer.toString();
     }
@@ -134,5 +126,59 @@ public class FeedServices {
         return languageList;
     }
 
+    /**
+     * Generate an unique ID for the entry and target language
+     */
+    String generateUniqueId(SyndEntry syndEntry, String targetLanguage) {
+        String key = null;
 
+        if (syndEntry.getLink() != null) {
+            key = syndEntry.getLink() + targetLanguage;
+        } else {
+            key = syndEntry.getTitle() + targetLanguage;
+        }
+
+        long h = 98764321261L;
+        int l = key.length();
+        char[] chars = key.toCharArray();
+
+        for (int i = 0; i < l; i++) {
+            h = 31 * h + chars[i];
+        }
+
+        return String.valueOf(h);
+    }
+
+    /**
+     * Convert the content to another language
+     */
+    private class SyndEntryLoader implements Callable<SyndEntry> {
+        private SyndEntry syndEntry;
+        private String targetLanguage;
+
+        public SyndEntryLoader(SyndEntry syndEntry, String targetLanguage) {
+            this.syndEntry = syndEntry;
+            this.targetLanguage = targetLanguage;
+        }
+
+        @Override
+        public SyndEntry call() throws Exception {
+            if (!StringUtils.isEmpty(syndEntry.getTitle())) {
+                syndEntry.setTitle(translateServices.translate(syndEntry.getTitle(), targetLanguage));
+            }
+            List<SyndContent> contentList = syndEntry.getContents();
+            for (SyndContent content : contentList) {
+                if (!StringUtils.isEmpty(content.getValue())) {
+                    content.setValue(translateServices.translate(content.getValue(), targetLanguage));
+                }
+            }
+            if (syndEntry.getDescription() != null) {
+                SyndContent description = syndEntry.getDescription();
+                if (!StringUtils.isEmpty(description.getValue())) {
+                    description.setValue(translateServices.translate(description.getValue(), targetLanguage));
+                }
+            }
+            return syndEntry;
+        }
+    }
 }

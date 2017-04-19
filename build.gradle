@@ -70,6 +70,7 @@ dependencies {
     compile "org.glassfish.jersey.media:jersey-media-json-jackson:$jerseyVersion"
     compile "com.fasterxml.jackson.datatype:jackson-datatype-joda:$jodaVersion"
     compile "com.fasterxml.jackson.module:jackson-module-afterburner:$afterburnerVersion"
+    compile "commons-lang:commons-lang:$commonsLangVersion"
 
     //MongoDB
     compile "org.mongodb:mongodb-driver:$mongoDBDriverVersion"
@@ -79,10 +80,6 @@ dependencies {
 
     //rss
     compile "com.rometools:rome:1.7.2"
-    compile "org.apache.abdera:abdera-parser:$abderaVersion"
-    compile "org.apache.abdera:abdera-extensions-media:$abderaVersion"
-    compile "org.apache.abdera:abdera-extensions-opensearch:$abderaVersion"
-    compile "org.apache.abdera:abdera-extensions-gdata:$abderaVersion"
 }
 
 // Create the executable jar and exclude some certificates
@@ -114,10 +111,15 @@ task runDocker(dependsOn: build, type: Exec) {
  * Runs the server locally
  */
 bootRun {
-    if (project.hasProperty('env')) {
+
+    if (project.hasProperty('env') && project.hasProperty('key')) {
         args = ["--env=$env", "--spring.profiles.active=$env", "--key=$key"]
+    } else if (project.hasProperty('key')) {
+        args = ["--env=local", "--spring.profiles.active=local", "--key=$key"]
+    } else if (project.hasProperty('env') ) {
+        args = ["--env=$env", "--spring.profiles.active=$env", "--key="]
     } else {
-        args = ['--env=local', "--spring.profiles.active=local", "--key=$key"]
+        args = ['--env=local', "--spring.profiles.active=local", "--key="]
     }
 }
 
